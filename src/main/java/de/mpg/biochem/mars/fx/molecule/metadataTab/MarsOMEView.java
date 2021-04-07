@@ -1,41 +1,56 @@
-/*
- * The MIT License
- *
- * Copyright 2016 Fiji.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
  */
 package de.mpg.biochem.mars.fx.molecule.metadataTab;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.controlsfx.control.textfield.CustomTextField;
 import org.scijava.Context;
 import org.scijava.convert.ConvertService;
 import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon;
+import de.jensd.fx.glyphs.fontawesome.utils.FontAwesomeIconFactory;
 import de.mpg.biochem.mars.metadata.GenericModel;
 import de.mpg.biochem.mars.metadata.MarsMetadata;
 import de.mpg.biochem.mars.metadata.MarsOMEImage;
 import de.mpg.biochem.mars.metadata.MarsOMEPlane;
+import impl.org.controlsfx.skin.CustomTextFieldSkin;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeItem;
@@ -47,16 +62,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import ome.xml.meta.OMEXMLMetadata;
 
 /**
- * FXML Controller class
- *
- * @author Hadrien Mary
- * 
- * Moved all portions of the fxml into the code here and removed the image update interaction..
+ * Inspired by FXML Controller class from Hadrien Mary. 
  * 
  * @author Karl Duderstadt
  */
@@ -71,19 +84,21 @@ public class MarsOMEView {
 	private AnchorPane rootAnchorPane;
 
 	private TreeView testTree;
+	
+	private CustomTextField filterField;
 
-	private TableView<List<String>> imageTable;
-	private TableColumn<List<String>, String> imageNameColumn;
-	private TableColumn<List<String>, String> imageValueColumn;
+	private TableView<String> imageTable;
+	private Map<String, String> imageData = new HashMap<String, String>();
+	private ObservableList<String> imageFieldNameList = FXCollections.observableArrayList();
+	private FilteredList<String> filteredImageFieldNameList = new FilteredList<>(imageFieldNameList, p -> true);
 
-	private TableView<List<String>> tiffDataTable;
-	private TableColumn<List<String>, String> tiffDataNameColumn;
-	private TableColumn<List<String>, String> tiffDataValueColumn;
+	private TableView<String> planeTable;
+	private Map<String, String> planeData = new HashMap<String, String>();
+	private ObservableList<String> planeFieldNameList = FXCollections.observableArrayList();
+	private FilteredList<String> filteredPlaneFieldNameList = new FilteredList<>(planeFieldNameList, p -> true);
 
 	public MarsOMEView(final Context context) {
 		context.inject(this);
-		
-		//Build everything that was in the fxml
 		
 		//Global container
 		rootAnchorPane = new AnchorPane();
@@ -121,14 +136,14 @@ public class MarsOMEView {
 		splitPane.getItems().add(planeIndexPane);
 		
 		//Global Right side container
-		AnchorPane planeDetailsPane = new AnchorPane();
-		planeDetailsPane.minHeight(0.0);
-		planeDetailsPane.minWidth(0.0);
-		planeDetailsPane.prefHeight(520.0);
-		planeDetailsPane.prefWidth(320.0);
-		planeDetailsPane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
+		//AnchorPane planeDetailsPane = new AnchorPane();
+		//planeDetailsPane.minHeight(0.0);
+		//planeDetailsPane.minWidth(0.0);
+		//planeDetailsPane.prefHeight(520.0);
+		//planeDetailsPane.prefWidth(320.0);
+		//planeDetailsPane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
 		
-		splitPane.getItems().add(planeDetailsPane);
+		//splitPane.getItems().add(planeDetailsPane);
 		
 		//Right side vertical splitpane
 		SplitPane planeSplitPane = new SplitPane();
@@ -162,21 +177,28 @@ public class MarsOMEView {
 		VBox.setMargin(separator, new Insets(10.0, 0.0, 10.0, 0.0));
 		vbox.getChildren().add(separator);
 		
-		imageTable = new TableView<List<String>>();
+		imageTable = new TableView<String>();
 		VBox.setVgrow(imageTable, Priority.ALWAYS);
+		imageTable.setItems(filteredImageFieldNameList);	
 		
-		imageNameColumn = new TableColumn<List<String>, String>();
+		TableColumn<String, String> imageNameColumn = new TableColumn<String, String>();
 		imageNameColumn.setEditable(false);
 		imageNameColumn.setPrefWidth(135.0);
 		imageNameColumn.setSortable(false);
 		imageNameColumn.setText("Name ");
+		imageNameColumn.setCellValueFactory(field -> {
+			return new ReadOnlyStringWrapper(field.getValue());
+		});
 		imageTable.getColumns().add(imageNameColumn);
 		
-		imageValueColumn = new TableColumn<List<String>, String>();
+		TableColumn<String, String> imageValueColumn = new TableColumn<String, String>();
 		imageValueColumn.setEditable(false);
 		imageValueColumn.setPrefWidth(135.0);
 		imageValueColumn.setSortable(false);
 		imageValueColumn.setText("Value ");
+		imageValueColumn.setCellValueFactory(field -> {
+			return new ReadOnlyStringWrapper(imageData.get(field.getValue()));
+		});
 		imageTable.getColumns().add(imageValueColumn);
 		
 		vbox.getChildren().add(imageTable);
@@ -203,27 +225,72 @@ public class MarsOMEView {
 		VBox.setMargin(separator2, new Insets(10.0, 0.0, 10.0, 0.0));
 		vBoxBottom.getChildren().add(separator2);
 		
-		tiffDataTable = new TableView<List<String>>();
-		VBox.setVgrow(tiffDataTable, Priority.ALWAYS);
+		planeTable = new TableView<String>();
+		VBox.setVgrow(planeTable, Priority.ALWAYS);
+		planeTable.setItems(filteredPlaneFieldNameList);
 		
-		tiffDataNameColumn = new TableColumn<List<String>, String>();
+		TableColumn<String, String> tiffDataNameColumn = new TableColumn<String, String>();
 		tiffDataNameColumn.setEditable(false);
 		tiffDataNameColumn.setPrefWidth(135.0);
 		tiffDataNameColumn.setSortable(false);
 		tiffDataNameColumn.setText("Name ");
-		tiffDataTable.getColumns().add(tiffDataNameColumn);
+		tiffDataNameColumn.setCellValueFactory(field -> {
+			return new ReadOnlyStringWrapper(field.getValue());
+		});
+		planeTable.getColumns().add(tiffDataNameColumn);
 		
-		tiffDataValueColumn = new TableColumn<List<String>, String>();
+		TableColumn<String, String> tiffDataValueColumn = new TableColumn<String, String>();
 		tiffDataValueColumn.setEditable(false);
 		tiffDataValueColumn.setPrefWidth(135.0);
 		tiffDataValueColumn.setSortable(false);
 		tiffDataValueColumn.setText("Value ");
-		tiffDataTable.getColumns().add(tiffDataValueColumn);
+		tiffDataValueColumn.setCellValueFactory(field -> {
+			return new ReadOnlyStringWrapper(planeData.get(field.getValue()));
+		});
+		planeTable.getColumns().add(tiffDataValueColumn);
 		
-		vBoxBottom.getChildren().add(tiffDataTable);
+		vBoxBottom.getChildren().add(planeTable);
 		positionAnchorPane.getChildren().add(vBoxBottom);
 		planeSplitPane.getItems().add(positionAnchorPane);
-		planeDetailsPane.getChildren().add(planeSplitPane);
+		
+		BorderPane borderPane = new BorderPane();
+		
+		filterField = new CustomTextField();
+        filterField.setLeft(FontAwesomeIconFactory.get().createIcon(FontAwesomeIcon.SEARCH));
+        filterField.getStyleClass().add("find");        
+        filterField.textProperty().addListener((observable, oldValue, newValue) -> {
+        	//If we don't clear the selection while we are searching the table will
+        	//steal the focus after every letter we type.
+        	imageTable.getSelectionModel().clearSelection();
+        	filteredImageFieldNameList.setPredicate(name -> {
+        		// If filter text is empty, display everything.
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                
+                return name.contains(newValue);
+        	});
+        	
+        	planeTable.getSelectionModel().clearSelection();
+        	filteredPlaneFieldNameList.setPredicate(name -> {
+        		// If filter text is empty, display everything.
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+        		
+        		return name.contains(newValue);
+        	});
+        });
+        
+		filterField.setStyle(
+              "-fx-background-radius: 2em; "
+        );
+
+        borderPane.setTop(filterField);
+        BorderPane.setMargin(filterField, new Insets(5));
+		
+		borderPane.setCenter(planeSplitPane);
+		splitPane.getItems().add(borderPane);
 	}
 
 	public void fill(MarsMetadata meta) {
@@ -254,40 +321,21 @@ public class MarsOMEView {
 
 	}
 
-	private void populateImageInformations(MarsOMEImage model) {
-
-		this.imageTable.getItems().clear();
-
-		this.imageNameColumn.setCellValueFactory(data -> {
-			return new ReadOnlyStringWrapper(data.getValue().get(0));
-		});
-
-		this.imageValueColumn.setCellValueFactory(data -> {
-			return new ReadOnlyStringWrapper(data.getValue().get(1));
-		});
-
-		for (List<String> row : model.getInformationsRow()) {
-			this.imageTable.getItems().add(row);
-		}
-
-	}
-
 	private void populateTiffDataInformations(MarsOMEPlane plane) {
 		MarsOMEImage imageModel = plane.getImage();
-		this.populateImageInformations(imageModel);
+		
+		imageData.clear();
+		imageFieldNameList.clear();
+		for (List<String> row : imageModel.getInformationsRow()) {
+			imageData.put(row.get(0), row.get(1));
+			imageFieldNameList.add(row.get(0));
+		}
 
-		this.tiffDataTable.getItems().clear();
-
-		this.tiffDataNameColumn.setCellValueFactory(data -> {
-			return new ReadOnlyStringWrapper(data.getValue().get(0));
-		});
-
-		this.tiffDataValueColumn.setCellValueFactory(data -> {
-			return new ReadOnlyStringWrapper(data.getValue().get(1));
-		});
-
+		planeData.clear();
+		planeFieldNameList.clear();
 		for (List<String> row : plane.getInformationsRow()) {
-			this.tiffDataTable.getItems().add(row);
+			planeData.put(row.get(0), row.get(1));
+			planeFieldNameList.add(row.get(0));
 		}
 	}
 	

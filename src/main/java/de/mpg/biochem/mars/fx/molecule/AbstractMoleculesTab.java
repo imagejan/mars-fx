@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,7 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.molecule;
 
 import java.io.IOException;
@@ -42,6 +44,7 @@ import javafx.scene.layout.StackPane;
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon;
 import de.jensd.fx.glyphs.fontawesome.utils.FontAwesomeIconFactory;
 import de.mpg.biochem.mars.fx.Messages;
+import de.mpg.biochem.mars.fx.bdv.MarsBdvFrame;
 import de.mpg.biochem.mars.fx.event.InitializeMoleculeArchiveEvent;
 import de.mpg.biochem.mars.fx.event.MetadataEvent;
 import de.mpg.biochem.mars.fx.event.MetadataSelectionChangedEvent;
@@ -51,7 +54,6 @@ import de.mpg.biochem.mars.fx.event.MoleculeArchiveSavingEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeArchiveUnlockEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeSelectionChangedEvent;
-import de.mpg.biochem.mars.fx.molecule.moleculesTab.MarsBdvFrame;
 import de.mpg.biochem.mars.fx.molecule.moleculesTab.MoleculeSubPane;
 import de.mpg.biochem.mars.fx.plot.event.PlotEvent;
 import de.mpg.biochem.mars.fx.plot.event.UpdatePlotAreaEvent;
@@ -103,9 +105,10 @@ public abstract class AbstractMoleculesTab<M extends Molecule, C extends Molecul
     
 	protected FilteredList<MoleculeIndexRow> filteredData;
 	
-	protected MarsBdvFrame<?> marsBdvFrame;
+	protected MarsBdvFrame[] marsBdvFrames;
 	
 	protected ChangeListener<MoleculeIndexRow> moleculeIndexTableListener;
+	protected double propertiesDividerPostion = 0.87f;
 
 	public AbstractMoleculesTab(final Context context) {
 		super(context);
@@ -116,18 +119,17 @@ public abstract class AbstractMoleculesTab<M extends Molecule, C extends Molecul
         setIcon(moleculeIcon);
 		
 		rootPane = new SplitPane();
-		ObservableList<Node> splitItems = rootPane.getItems();
 		
 		Node moleculeTableIndexContainer = buildMoleculeTableIndex();
 		SplitPane.setResizableWithParent(moleculeTableIndexContainer, Boolean.FALSE);
-		splitItems.add(moleculeTableIndexContainer);
+		rootPane.getItems().add(moleculeTableIndexContainer);
 		
 		moleculeCenterPane = createMoleculeCenterPane(context);
-		splitItems.add(moleculeCenterPane.getNode());
+		rootPane.getItems().add(moleculeCenterPane.getNode());
 		
 		moleculePropertiesPane = createMoleculePropertiesPane(context);
 		SplitPane.setResizableWithParent(moleculePropertiesPane.getNode(), Boolean.FALSE);
-		splitItems.add(moleculePropertiesPane.getNode());	
+		rootPane.getItems().add(moleculePropertiesPane.getNode());	
 		
 		rootPane.setDividerPositions(0.15f, 0.87f);
 		
@@ -332,12 +334,14 @@ public abstract class AbstractMoleculesTab<M extends Molecule, C extends Molecul
 	            	//Update center pane and properties pane.
 	            	moleculeCenterPane.fireEvent(new MoleculeSelectionChangedEvent(molecule));
 	            	moleculePropertiesPane.fireEvent(new MoleculeSelectionChangedEvent(molecule));
-	            	if (marsBdvFrame != null) {
+	            	if (marsBdvFrames != null) {
 	            		SwingUtilities.invokeLater(new Runnable() {
 	    		            @Override
 	    		            public void run() {
 			            		if (molecule != null)
-			            			marsBdvFrame.setMolecule(molecule);
+			            			for (int i=0; i<marsBdvFrames.length; i++)
+			            				if (marsBdvFrames[i] != null)
+			            					marsBdvFrames[i].setMolecule(molecule);
 	    		            }
 	    		        });
 	            	}
@@ -415,6 +419,20 @@ public abstract class AbstractMoleculesTab<M extends Molecule, C extends Molecul
         return borderPane;
 	}
 	
+	public void showProperties() {
+		if (!rootPane.getItems().contains(moleculePropertiesPane.getNode())) {
+			rootPane.getItems().add(moleculePropertiesPane.getNode());
+			rootPane.setDividerPosition(1, propertiesDividerPostion);
+		}
+	}
+	
+	public void hideProperties() {
+		if (rootPane.getItems().contains(moleculePropertiesPane.getNode())) {
+			propertiesDividerPostion = rootPane.getDividerPositions()[1];
+			rootPane.getItems().remove(moleculePropertiesPane.getNode());
+		}
+	}
+	
 	public void saveCurrentRecord() {
     	if (molecule != null)
     		archive.put(molecule);
@@ -449,8 +467,8 @@ public abstract class AbstractMoleculesTab<M extends Molecule, C extends Molecul
 	}
     
     @Override
-    public void setMarsBdvFrame(MarsBdvFrame<?> marsBdvFrame) {
-    	this.marsBdvFrame = marsBdvFrame;
+    public void setMarsBdvFrames(MarsBdvFrame[] marsBdvFrames) {
+    	this.marsBdvFrames = marsBdvFrames;
     }
 
 	@Override

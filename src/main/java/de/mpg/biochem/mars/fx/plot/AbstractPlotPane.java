@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,9 +24,11 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.plot;
 
+import de.gsi.chart.axes.Axis;
 import de.gsi.chart.axes.AxisLabelFormatter;
 import de.gsi.chart.axes.AxisMode;
 import de.gsi.chart.plugins.ChartPlugin;
@@ -210,6 +213,11 @@ public abstract class AbstractPlotPane extends AbstractJsonConvertibleRecord imp
 
 		Action resetXYZoom = new Action("Reset Zoom", null, EXPAND, e -> {
 			resetXYZoom();
+			
+			//HACK - Fixes problem where y-axis doesn't refresh on rare occasions.
+			//Somehow layoutChildren, even in a runLater block doesn't always work
+			//Needs further investigation. This should be removed once a solution is found.
+			//resetXYZoom();
 		});
 		toolBar.getItems().add(ActionUtils.createToolBarButton(resetXYZoom));
 		
@@ -313,24 +321,29 @@ public abstract class AbstractPlotPane extends AbstractJsonConvertibleRecord imp
 	
 			if (fixXBounds.get()) {
 				subPlot.getChart().getXAxis().setAutoRanging(false);
-				subPlot.getChart().getXAxis().setMin(plotOptionsPane.getXMin());
-				subPlot.getChart().getXAxis().setMax(plotOptionsPane.getXMax());
+				subPlot.getChart().getXAxis().set(plotOptionsPane.getXMin(), plotOptionsPane.getXMax());
 			} else
 				subPlot.getChart().getXAxis().setAutoRanging(true);
-			//subPlot.getChart().getXAxis().forceRedraw();
 			
 			if (subPlot.getDatasetOptionsPane().fixYBounds().get()) {
 				subPlot.getChart().getYAxis().setAutoRanging(false);
-				subPlot.getChart().getYAxis().setMin(subPlot.getDatasetOptionsPane().getYMin());
-				subPlot.getChart().getYAxis().setMax(subPlot.getDatasetOptionsPane().getYMax());
+				subPlot.getChart().getYAxis().set(subPlot.getDatasetOptionsPane().getYMin(), subPlot.getDatasetOptionsPane().getYMax());
 			} else
 				subPlot.getChart().getYAxis().setAutoRanging(true);
 						
 			if (reducePoints.get() && subPlot.getChart().getRenderers().get(0) instanceof SegmentDataSetRenderer)
 				((SegmentDataSetRenderer) subPlot.getChart().getRenderers().get(0)).setMinRequiredReductionSize(plotOptionsPane.getMinRequiredReductionSize());
 			
-			subPlot.getChart().layout();
+			for (Axis a : subPlot.getChart().getAxes())
+	            a.forceRedraw();
+			
+			//issues with updating here appear to be related to https://github.com/GSI-CS-CO/chart-fx/issues/23
+			//Still the plot area doesn't update together with the axis...
+			//Platform.runLater(() -> subPlot.getChart().layoutChildren());
 		}
+		
+		for (SubPlot subPlot : charts)
+			Platform.runLater(() -> subPlot.getChart().layoutChildren());
 	}
 	
 	public abstract void addChart();
@@ -537,6 +550,11 @@ public abstract class AbstractPlotPane extends AbstractJsonConvertibleRecord imp
 		            	if (!fixXBounds.get())
 		            		fixXBounds.set(true);
 		            	resetXYZoom();
+		            	
+		            	//HACK - Fixes problem where y-axis doesn't refresh on rare occasions.
+		    			//Somehow layoutChildren, even in a runLater block doesn't always work
+		    			//Needs further investigation. This should be removed once a solution is found.
+		    			//resetXYZoom();
 		            }
 		        }
 			};

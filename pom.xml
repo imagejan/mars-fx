@@ -1,20 +1,16 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>29.2.1</version>
+		<version>30.0.0</version>
 		<relativePath />
 	</parent>
 
 	<groupId>de.mpg.biochem</groupId>
 	<artifactId>mars-fx</artifactId>
-	<version>11.1.0-beta-6-SNAPSHOT</version>
-
+	<version>11.1.1-SNAPSHOT</version>
 	<name>mars-fx</name>
 	<url>http://biochem.mpg.de/duderstadt/</url>
 	<inceptionYear>2018</inceptionYear>
@@ -92,13 +88,14 @@
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 	
 		<package-name>de.mpg.biochem.mars</package-name>
-		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>Karl Duderstadt</license.copyrightOwners>
-
+		<license.licenseName>bsd_2</license.licenseName>
+		<license.excludes>**/resources/**</license.excludes>
+		
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<mars-core.version>1.0.0-beta-11-SNAPSHOT</mars-core.version>
+		<mars-core.version>1.0.0-beta-13</mars-core.version>
 		<jackson.version>2.11.2</jackson.version>
 		<jackson-core.version>${jackson.version}</jackson-core.version>
 		<jackson-dataformat-smile.version>${jackson.version}</jackson-dataformat-smile.version>
@@ -140,8 +137,6 @@
 	    </resource>
 	  </resources>
 	  </build>
-	  
-	  
 
 	<dependencies>
 		<dependency>
@@ -170,6 +165,11 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-ij</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-ij</artifactId>
+			<version>1.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -211,10 +211,12 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
+			<version>10.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
+			<version>1.0.0-beta-28</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -328,7 +330,7 @@
 		<dependency>
 			<groupId>org.fxmisc.richtext</groupId>
 			<artifactId>richtextfx</artifactId>
-			<version>0.10.5</version>
+			<version>0.9.2</version>
 		</dependency>
 		<dependency>
 			<groupId>de.gsi.chart</groupId>

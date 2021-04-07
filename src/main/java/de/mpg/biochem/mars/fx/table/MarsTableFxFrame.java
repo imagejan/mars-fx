@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,7 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.table;
 
 import static de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.FLOPPY_ALT;
@@ -198,8 +200,8 @@ public class MarsTableFxFrame extends AbstractJsonConvertibleRecord implements M
 	    			frame.setVisible(true);
 				});
 		}  catch (IOException e) {
-			logService.warn("A problem was encountered when loading the cfg file " 
-					+ table.getFile().getAbsolutePath() + ".cfg" + " containing the mars-fx display settings. "
+			logService.warn("A problem was encountered when loading the rover file " 
+					+ table.getFile().getAbsolutePath() + ".rover" + " containing the mars-fx display settings. "
 					+ "Please check the file to make sure the syntax is correct."
 					+ "Aborting and opening with the default settings.");
 		}
@@ -272,6 +274,7 @@ public class MarsTableFxFrame extends AbstractJsonConvertibleRecord implements M
 	    			public void changed(ObservableValue<? extends Tab> observable, Tab oldValue, Tab newValue) {
 	    					
 	    				if (oldValue == commentTab) {
+	    					commentPane.setEditMode(false);
 	    					menuBar.getMenus().removeAll(commentPane.getMenus());
 	    				}
 	    				
@@ -430,7 +433,7 @@ public class MarsTableFxFrame extends AbstractJsonConvertibleRecord implements M
 	}
 	
 	protected void saveState(String path) throws IOException {
-		OutputStream stream = new BufferedOutputStream(new FileOutputStream(new File(path + ".cfg")));
+		OutputStream stream = new BufferedOutputStream(new FileOutputStream(new File(path + ".rover")));
 		JsonGenerator jGenerator = jfactory.createGenerator(stream);
 		jGenerator.useDefaultPrettyPrinter();
 		toJSON(jGenerator);
@@ -443,7 +446,7 @@ public class MarsTableFxFrame extends AbstractJsonConvertibleRecord implements M
     	if (table.getFile() == null)
     		return;
     	
-    	File stateFile = new File(table.getFile().getAbsolutePath() + ".cfg");
+    	File stateFile = new File(table.getFile().getAbsolutePath() + ".rover");
     	if (!stateFile.exists())
     		return;
     	

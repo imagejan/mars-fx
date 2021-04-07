@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,51 +24,108 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.molecule.metadataTab;
 import java.io.File;
+import java.util.Arrays;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.controlsfx.control.textfield.CustomTextField;
+import javax.swing.SwingUtilities;
 
-import com.jfoenix.controls.JFXCheckBox;
+import org.controlsfx.control.textfield.CustomTextField;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.ij.N5Importer.N5BasePathFun;
+import org.janelia.saalfeldlab.n5.ij.N5Importer.N5ViewerReaderFun;
+import org.janelia.saalfeldlab.n5.metadata.DefaultMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.ui.DataSelection;
+import org.janelia.saalfeldlab.n5.ui.DatasetSelectorDialog;
+import org.janelia.saalfeldlab.n5.ui.N5DatasetTreeCellRenderer;
 
 import de.jensd.fx.glyphs.fontawesome.utils.FontAwesomeIconFactory;
 import de.mpg.biochem.mars.fx.event.MetadataEvent;
 import de.mpg.biochem.mars.fx.event.MetadataEventHandler;
-import de.mpg.biochem.mars.fx.plot.PlotSeries;
+import de.mpg.biochem.mars.fx.event.MoleculeSelectionChangedEvent;
+import de.mpg.biochem.mars.fx.util.EditCell;
+import de.mpg.biochem.mars.metadata.MarsBdvSource;
 import de.mpg.biochem.mars.metadata.MarsMetadata;
-import de.mpg.biochem.mars.molecule.MarsBdvSource;
 import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.geometry.Insets;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.util.Callback;
+import javafx.util.converter.DefaultStringConverter;
 
-import javafx.scene.layout.FlowPane;
+import javafx.stage.DirectoryChooser;
 
 public class BdvViewTable implements MetadataEventHandler {
     
 	protected MarsMetadata marsImageMetadata;
 	
-	protected BorderPane rootPane;
+	protected SplitPane rootPane;
 	
     protected CustomTextField addBdvSourceNameField;
-    protected TableView<MarsBdvSource> bdvTable;
     protected ObservableList<MarsBdvSource> bdvRowList = FXCollections.observableArrayList();
+    
+    protected Button typeButton;
+    protected int buttonType = 0;
+    
+    protected BdvSourceOptionsPane bdvSourceOptionsPane;
+    
+    protected ChangeListener<MarsBdvSource> bdvIndexTableListener;
 
-    public BdvViewTable() {        
-    	bdvTable = new TableView<MarsBdvSource>();
+    public BdvViewTable() {
+    	rootPane = new SplitPane();
+		ObservableList<Node> splitItems = rootPane.getItems();
+		
+		rootPane.setDividerPositions(0.2f, 0.8f);
+		
+		Node bdvTableIndexContainer = buildBdvTableIndex();
+		SplitPane.setResizableWithParent(bdvTableIndexContainer, Boolean.FALSE);
+		splitItems.add(bdvTableIndexContainer);
+
+		bdvSourceOptionsPane = new BdvSourceOptionsPane();
+		SplitPane.setResizableWithParent(bdvSourceOptionsPane, Boolean.FALSE);
+		splitItems.add(bdvSourceOptionsPane);
+		bdvSourceOptionsPane.setMarsBdvSource(null);
+		
+        getNode().addEventHandler(MetadataEvent.METADATA_EVENT, this);
+    }
+    
+    protected BorderPane buildBdvTableIndex() {
+    	TableView<MarsBdvSource> bdvTable = new TableView<MarsBdvSource>();
     	addBdvSourceNameField = new CustomTextField();
+    	
+    	TableColumn<MarsBdvSource, String> typeColumn = new TableColumn<>();
+        typeColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        typeColumn.setCellValueFactory(bdvSource ->
+                new ReadOnlyObjectWrapper<>((bdvSource.getValue().isN5()) ? "N5" : "HD5")
+        );
+        typeColumn.setSortable(false);
+        typeColumn.setEditable(false);
+        typeColumn.setPrefWidth(40);
+        typeColumn.setMinWidth(40);
+        typeColumn.setStyle( "-fx-alignment: CENTER-LEFT;");
+        bdvTable.getColumns().add(typeColumn);
     	
     	TableColumn<MarsBdvSource, MarsBdvSource> deleteColumn = new TableColumn<>();
     	deleteColumn.setPrefWidth(30);
@@ -107,7 +165,8 @@ public class BdvViewTable implements MetadataEventHandler {
     	bdvTable.getColumns().add(deleteColumn);
 
         TableColumn<MarsBdvSource, String> nameColumn = new TableColumn<>("Name");
-        nameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        
+        nameColumn.setCellFactory(column -> EditCell.createStringEditCell());
         nameColumn.setOnEditCommit(event -> { 
         	String newRegionName = event.getNewValue();
         	if (!marsImageMetadata.hasBdvSource(newRegionName)) {
@@ -132,63 +191,24 @@ public class BdvViewTable implements MetadataEventHandler {
         nameColumn.setStyle( "-fx-alignment: CENTER-LEFT;");
         bdvTable.getColumns().add(nameColumn);
         
-        TableColumn<MarsBdvSource, String> m00Column = buildAffineColumn("m00", 0, 0);
-        bdvTable.getColumns().add(m00Column);
-        TableColumn<MarsBdvSource, String> m01Column = buildAffineColumn("m01", 0, 1);
-        bdvTable.getColumns().add(m01Column);
-        TableColumn<MarsBdvSource, String> m02Column = buildAffineColumn("m02", 0, 3);
-        bdvTable.getColumns().add(m02Column);
-        TableColumn<MarsBdvSource, String> m10Column = buildAffineColumn("m10", 1, 0);
-        bdvTable.getColumns().add(m10Column);
-        TableColumn<MarsBdvSource, String> m11Column = buildAffineColumn("m11", 1, 1);
-        bdvTable.getColumns().add(m11Column);
-        TableColumn<MarsBdvSource, String> m12Column = buildAffineColumn("m12", 1, 3);
-        bdvTable.getColumns().add(m12Column);
-        
-        TableColumn<MarsBdvSource, MarsBdvSource> driftCorrectColumn = new TableColumn<>("Drift Correct");
-        driftCorrectColumn.setPrefWidth(40);
-        driftCorrectColumn.setMinWidth(40);
-        driftCorrectColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue()));
-        driftCorrectColumn.setCellFactory(param -> new TableCell<MarsBdvSource, MarsBdvSource>() {
-            private final JFXCheckBox checkbox = new JFXCheckBox();
-
-            @Override
-            protected void updateItem(MarsBdvSource pRow, boolean empty) {
-                super.updateItem(pRow, empty);
-
-                if (pRow == null) {
-                    setGraphic(null);
-                    return;
-                }
-                
-                checkbox.setSelected(pRow.getCorrectDrift());
-                
-                setGraphic(checkbox);
-                checkbox.setOnAction(e -> {
-        			if (checkbox.isSelected())
-        				pRow.setCorrectDrift(true);
-        			else 
-        				pRow.setCorrectDrift(false);
-        		});
-            }
-        });
-    	driftCorrectColumn.setStyle("-fx-alignment: CENTER;");
-    	driftCorrectColumn.setSortable(false);
-    	bdvTable.getColumns().add(driftCorrectColumn);
-
-        TableColumn<MarsBdvSource, String> xmlPathColumn = buildEntryFieldColumn("file path (xml)");
-        xmlPathColumn.setOnEditCommit(event -> event.getRowValue().setPathToXml(event.getNewValue()));
-        xmlPathColumn.setCellValueFactory(bdvSource ->
-                new ReadOnlyObjectWrapper<>(String.valueOf(bdvSource.getValue().getPathToXml()))
-        );
-        bdvTable.getColumns().add(xmlPathColumn);
-        
         bdvTable.setItems(bdvRowList);
         bdvTable.setEditable(true);
+        
+        bdvIndexTableListener = new ChangeListener<MarsBdvSource> () {
+        	public void changed(ObservableValue<? extends MarsBdvSource> observable, MarsBdvSource oldMarsBdvSource, MarsBdvSource newMarsBdvSource) {
+        		if (newMarsBdvSource != null)
+	            	bdvSourceOptionsPane.setMarsBdvSource(newMarsBdvSource);
+	            else 
+	            	bdvSourceOptionsPane.setMarsBdvSource(null);
+        	}
+        };
+        
+        bdvTable.getSelectionModel().selectedItemProperty().addListener(bdvIndexTableListener);
 
 		Button addButton = new Button();
 		addButton.setGraphic(FontAwesomeIconFactory.get().createIcon(de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.PLUS, "1.0em"));
 		addButton.setCenterShape(true);
+		addButton.setCursor(Cursor.DEFAULT);
 		addButton.setStyle(
                 "-fx-background-radius: 5em; " +
                 "-fx-min-width: 18px; " +
@@ -200,15 +220,64 @@ public class BdvViewTable implements MetadataEventHandler {
 			if (!addBdvSourceNameField.getText().equals("") && !marsImageMetadata.hasBdvSource(addBdvSourceNameField.getText())) {
 				MarsBdvSource bdvSource = new MarsBdvSource(addBdvSourceNameField.getText());
 				
-				FileChooser fileChooser = new FileChooser();
-				fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
-
-				File pathToXml = fileChooser.showOpenDialog(getNode().getScene().getWindow());
+				switch (this.buttonType) {
+					case 0:
+						bdvSource.setN5(true);
+			    		break;
+					case 1:
+						bdvSource.setN5(false);
+						break;
+				}
 				
-				if (pathToXml != null) {
-					bdvSource.setPathToXml(pathToXml.getAbsolutePath());
-					marsImageMetadata.putBdvSource(bdvSource);
-					loadBdvSources();
+				if (bdvSource.isN5()) {
+					SwingUtilities.invokeLater(new Runnable() {
+			            @Override
+			            public void run() {
+			            	DatasetSelectorDialog selectionDialog = new DatasetSelectorDialog(
+								new N5ViewerReaderFun(),
+								new N5BasePathFun(),
+								System.getProperty("user.home"),
+								null, // no group parsers
+								new N5MetadataParser[]{
+									new DefaultMetadata( "", -1 )
+								});
+			            	
+		            			selectionDialog.setVirtualOption( false );
+			            		selectionDialog.setCropOption( false );
+					
+			            		selectionDialog.setTreeRenderer( new N5DatasetTreeCellRenderer( true ) );
+			            		
+			            		//Prevents NullPointerException
+			            		selectionDialog.setContainerPathUpdateCallback( x -> { });
+			            		
+			            		final Consumer< DataSelection > callback = (DataSelection dataSelection) -> {
+			            			Platform.runLater(new Runnable() {
+			            				@Override
+			            				public void run() {
+			            					bdvSource.setPath(selectionDialog.getN5RootPath());
+			            					bdvSource.setN5Dataset(dataSelection.metadata.get(0).getPath());
+			            					bdvSource.setProperty("info", getDatasetInfo(dataSelection.metadata.get(0).getAttributes()));
+			        						marsImageMetadata.putBdvSource(bdvSource);
+			        						loadBdvSources();
+			            				}
+			            	    	});
+			            		};
+			            		
+			            		selectionDialog.run( callback );
+			            }
+			        });
+				} else {
+					FileChooser fileChooser = new FileChooser();
+					fileChooser.setTitle("Select xml");
+					fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+					fileChooser.getExtensionFilters().add(new ExtensionFilter("xml file", "*.xml"));
+					File path = fileChooser.showOpenDialog(getNode().getScene().getWindow());
+					
+					if (path != null) {
+						bdvSource.setPath(path.getAbsolutePath());
+						marsImageMetadata.putBdvSource(bdvSource);
+						loadBdvSources();
+					}
 				}
 			}
 		});
@@ -223,46 +292,46 @@ public class BdvViewTable implements MetadataEventHandler {
 		addBdvSourceNameField.setStyle(
                 "-fx-background-radius: 2em; "
         );
+		
+		typeButton = new Button();
+        typeButton.setText("N5");
+        typeButton.setCenterShape(true);
+        typeButton.setStyle(
+                "-fx-background-radius: 2em; " +
+                "-fx-min-width: 60px; " +
+                "-fx-min-height: 30px; " +
+                "-fx-max-width: 60px; " +
+                "-fx-max-height: 30px;"
+        );
+        typeButton.setOnAction(e -> {
+        	buttonType++;
+        	if (buttonType > 1)
+        		buttonType = 0;
+        	
+			switch (buttonType) {
+				case 0:
+					typeButton.setText("N5");
+					typeButton.setGraphic(null);
+					break;
+				case 1:
+					typeButton.setText("HD5");
+					typeButton.setGraphic(null);
+					break;
+			}
+		});
+        
+        BorderPane bomttomPane = new BorderPane();
+        bomttomPane.setCenter(addBdvSourceNameField);
+        bomttomPane.setLeft(typeButton);
 
-        rootPane = new BorderPane();
-        Insets insets = new Insets(5);
+        BorderPane bdvTableIndex = new BorderPane();
+        bdvTableIndex.setCenter(bdvTable);
+        bdvTableIndex.setBottom(bomttomPane);
+
+        BorderPane.setMargin(addBdvSourceNameField, new Insets(5));
+        BorderPane.setMargin(typeButton, new Insets(5));
         
-        rootPane.setCenter(bdvTable);
-        rootPane.setBottom(addBdvSourceNameField);
-        BorderPane.setMargin(addBdvSourceNameField, insets);
-        
-        getNode().addEventHandler(MetadataEvent.METADATA_EVENT, this);
-    }
-    
-    protected TableColumn<MarsBdvSource, String> buildAffineColumn(String name, int rowIndex, int columnIndex) {
-    	TableColumn<MarsBdvSource, String> column = buildEntryFieldColumn(name);
-    	column.setOnEditCommit(event -> { 
-        	try {
-    			double num = Double.valueOf(event.getNewValue());
-    			event.getRowValue().getAffineTransform3D().set(num, rowIndex, columnIndex);
-    		} catch (NumberFormatException e) {
-    			//Do nothing for the moment...
-    		}
-        });
-    	column.setCellValueFactory(bdvSource -> {
-    		String str = "";
-    		if (bdvSource.getValue().getAffineTransform3D() != null)
-    			str = String.valueOf(bdvSource.getValue().getAffineTransform3D().get(rowIndex, columnIndex));
-    		
-    		return new ReadOnlyObjectWrapper<>(str);
-    	});
-    	return column;
-    }
-    
-    protected TableColumn<MarsBdvSource, String> buildEntryFieldColumn(String name) {
-    	TableColumn<MarsBdvSource, String> column = new TableColumn<>(name);
-        column.setCellFactory(TextFieldTableCell.forTableColumn());
-        column.setSortable(false);
-        column.setPrefWidth(100);
-        column.setMinWidth(100);
-        column.setEditable(true);
-        column.setStyle( "-fx-alignment: CENTER-LEFT;");
-        return column;
+        return bdvTableIndex;
     }
     
     public Node getNode() {
@@ -272,6 +341,14 @@ public class BdvViewTable implements MetadataEventHandler {
     public void loadBdvSources() {
     	bdvRowList.setAll(marsImageMetadata.getBdvSourceNames().stream().map(name -> marsImageMetadata.getBdvSource(name)).collect(Collectors.toList()));
 	}
+    
+    public static String getDatasetInfo(DatasetAttributes attributes) {
+		final String dimString = String.join( " x ",
+				Arrays.stream(attributes.getDimensions())
+					.mapToObj( d -> Long.toString( d ))
+					.collect( Collectors.toList() ) );
+		return  dimString + ", " + attributes.getDataType();
+    }
 
 	@Override
 	public void handle(MetadataEvent event) {

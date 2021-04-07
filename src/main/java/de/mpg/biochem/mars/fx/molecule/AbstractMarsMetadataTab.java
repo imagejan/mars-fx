@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,7 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.molecule;
 
 import java.io.IOException;
@@ -82,6 +84,8 @@ public abstract class AbstractMarsMetadataTab<I extends MarsMetadata, C extends 
 	protected FilteredList<MetaIndexRow> filteredData;
 	
 	protected ChangeListener<MetaIndexRow> metaIndexTableListener;
+	
+	protected double propertiesDividerPostion = 0.87f;
 
 	public AbstractMarsMetadataTab(final Context context) {
 		super(context);
@@ -92,18 +96,17 @@ public abstract class AbstractMarsMetadataTab<I extends MarsMetadata, C extends 
 		setIcon(microscopeIcon);
 		
 		rootPane = new SplitPane();
-		ObservableList<Node> splitItems = rootPane.getItems();
 		
 		Node metadataTableIndexContainer = buildMetadataTableIndex();
 		SplitPane.setResizableWithParent(metadataTableIndexContainer, Boolean.FALSE);
-		splitItems.add(metadataTableIndexContainer);
+		rootPane.getItems().add(metadataTableIndexContainer);
 		
 		metadataCenterPane = createMetadataCenterPane(context);
-		splitItems.add(metadataCenterPane.getNode());
+		rootPane.getItems().add(metadataCenterPane.getNode());
 		
 		metadataPropertiesPane = createMetadataPropertiesPane(context);
 		SplitPane.setResizableWithParent(metadataPropertiesPane.getNode(), Boolean.FALSE);
-		splitItems.add(metadataPropertiesPane.getNode());
+		rootPane.getItems().add(metadataPropertiesPane.getNode());
 		
 		rootPane.setDividerPositions(0.15f, 0.87f);
 		
@@ -220,6 +223,20 @@ public abstract class AbstractMarsMetadataTab<I extends MarsMetadata, C extends 
         borderPane.setCenter(metaIndexTable);
         
         return borderPane;
+	}
+	
+	public void showProperties() {
+		if (!rootPane.getItems().contains(metadataPropertiesPane.getNode())) {
+			rootPane.getItems().add(metadataPropertiesPane.getNode());
+			rootPane.setDividerPosition(1, propertiesDividerPostion);
+		}
+	}
+	
+	public void hideProperties() {
+		if (rootPane.getItems().contains(metadataPropertiesPane.getNode())) {
+			propertiesDividerPostion = rootPane.getDividerPositions()[1];
+			rootPane.getItems().remove(metadataPropertiesPane.getNode());
+		}
 	}
     
     public void saveCurrentRecord() {

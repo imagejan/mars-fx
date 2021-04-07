@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,7 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.molecule;
 
 import static java.util.stream.Collectors.toList;
@@ -56,6 +58,7 @@ import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.text.Text;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
@@ -67,9 +70,14 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.format.DataFormatDetector;
 import com.fasterxml.jackson.core.format.DataFormatMatcher;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.jfoenix.controls.JFXTabPane;
 
+import bdv.util.BdvHandle;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -94,10 +102,12 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Modality;
 import javafx.scene.control.DialogPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.Priority;
 import javafx.scene.image.ImageView;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Button;
 
 import javafx.concurrent.Task;
 
@@ -115,12 +125,22 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.io.FileUtils;
 import org.controlsfx.control.MaskerPane;
 
 import static de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.*;
 
+import de.jensd.fx.glyphs.fontawesome.utils.FontAwesomeIconFactory;
+import de.mpg.biochem.mars.fx.bdv.LocationCard;
+import de.mpg.biochem.mars.fx.bdv.MarsBdvCard;
+import de.mpg.biochem.mars.fx.bdv.MarsBdvFrame;
+import de.mpg.biochem.mars.fx.bdv.ViewerTransformSyncStarter;
+import de.mpg.biochem.mars.fx.bdv.ViewerTransformSyncStopper;
 import de.mpg.biochem.mars.fx.dialogs.PropertySelectionDialog;
+import de.mpg.biochem.mars.fx.dialogs.RoverErrorDialog;
+import de.mpg.biochem.mars.fx.dialogs.RoverConfirmationDialog;
 import de.mpg.biochem.mars.fx.dialogs.SegmentTableSelectionDialog;
+import de.mpg.biochem.mars.fx.dialogs.ShowVideoDialog;
 import de.mpg.biochem.mars.fx.event.InitializeMoleculeArchiveEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeArchiveLockEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeArchiveSavedEvent;
@@ -131,12 +151,13 @@ import de.mpg.biochem.mars.fx.event.RefreshMetadataEvent;
 import de.mpg.biochem.mars.fx.event.RefreshMoleculeEvent;
 import de.mpg.biochem.mars.fx.event.RefreshMoleculePropertiesEvent;
 import de.mpg.biochem.mars.fx.molecule.metadataTab.MetadataSubPane;
-import de.mpg.biochem.mars.fx.molecule.moleculesTab.MarsBdvFrame;
 import de.mpg.biochem.mars.fx.molecule.moleculesTab.MoleculeSubPane;
+import de.mpg.biochem.mars.fx.plot.PlotSeries;
 import de.mpg.biochem.mars.fx.util.*;
 import de.mpg.biochem.mars.metadata.MarsMetadata;
 import de.mpg.biochem.mars.molecule.*;
 import de.mpg.biochem.mars.table.MarsTable;
+import de.mpg.biochem.mars.util.DefaultJsonConverter;
 import de.mpg.biochem.mars.util.MarsUtil;
 
 import javafx.scene.control.TextArea;
@@ -150,6 +171,9 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 	
     @Parameter
     protected UIService uiService;
+    
+    @Parameter
+    protected PrefService prefService;
     
     @Parameter
     protected Context context;
@@ -173,6 +197,11 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     protected TextArea lockLogArea;
     
 	protected MenuBar menuBar;
+	protected HBox menuHBox;
+	protected Button showPropertiesButton;
+	
+    protected Menu fileMenu, toolsMenu;
+    protected BooleanProperty showProperties = new SimpleBooleanProperty(true);
 	
 	protected DashboardTab dashboardTab;
     protected CommentsTab commentsTab; 
@@ -182,16 +211,16 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     protected SettingsTab settingsTab;
     
     protected boolean windowStateLoaded = false;
+    //protected boolean discoveredBdvFrameSettings = false;
     
     protected static JsonFactory jfactory;
 	
     protected Set<MoleculeArchiveTab> tabSet;
     
-    protected MarsBdvFrame<?> marsBdvFrame;
+    protected MarsBdvFrame[] marsBdvFrames;
+    protected byte[] roverFileBackground;
 
     protected double tabWidth = 50.0;
-    
-    protected Menu fileMenu, toolsMenu;
     
     protected final AtomicBoolean archiveLocked = new AtomicBoolean(false);
 
@@ -286,6 +315,16 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
         buildMenuBar();
         buildTabs();
         
+        showProperties.addListener((observable, oldValue, newValue) -> {
+        	if (newValue.booleanValue()) {
+        		imageMetadataTab.showProperties();
+        		moleculesTab.showProperties();
+        	} else {
+        		imageMetadataTab.hideProperties();
+        		moleculesTab.hideProperties();
+        	}
+        });
+        
         //Now add tabs to container
         tabSet.forEach(maTab -> tabsContainer.getTabs().add(maTab.getTab()));
         
@@ -303,8 +342,8 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 	    			frame.setVisible(true);
 				});
 		} catch (IOException e) {
-			logService.warn("A problem was encountered when loading the cfg file " 
-					+ archive.getFile().getAbsolutePath() + ".cfg" + " containing the mars-fx display settings. "
+			logService.warn("A problem was encountered when loading the rover file " 
+					+ archive.getFile().getAbsolutePath() + ".rover" + " containing the mars-fx display settings. "
 					+ "Please check the file to make sure the syntax is correct."
 					+ "Aborting and opening with the default settings.");
 		}
@@ -341,6 +380,7 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     				tabSet.stream().filter(maTab -> newValue == maTab.getTab()).findFirst().ifPresent(maTab -> updateMenus(maTab.getMenus()));
     					
     				if (oldValue == commentsTab.getTab()) {
+    					commentsTab.getCommentPane().setEditMode(false);
     					commentsTab.saveComments();
     				} else if (oldValue == imageMetadataTab.getTab()) {
     					imageMetadataTab.saveCurrentRecord();
@@ -353,9 +393,13 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     				
 	    			if (newValue == imageMetadataTab.getTab()) {
 						imageMetadataTab.fireEvent(new RefreshMetadataEvent());
+						showPropertiesButton();
 					} else if (newValue == moleculesTab.getTab()) {
 						moleculesTab.fireEvent(new RefreshMoleculeEvent());
-					} 
+						showPropertiesButton();
+					} else {
+						hidePropertiesButton();
+					}
     			}
     		});
     }
@@ -393,74 +437,7 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 				fileCloseAction);
 		
 		//Build tools menu
-		Action showVideoAction = new Action("Show Video", null, null,
-				e -> {
-			        SwingUtilities.invokeLater(new Runnable() {
-			            @Override
-			            public void run() {
-			            	GenericDialog dialog = new GenericDialog("Mars Bdv view");
-			     			dialog.addStringField("x_parameter", "roi_x", 25);
-			     			dialog.addStringField("y_parameter", "roi_y", 25);
-			          		dialog.showDialog();
-			          		
-			          		if (dialog.wasCanceled())
-			          			return;
-			          		
-			          		String xParameter = dialog.getNextString();
-			          		String yParameter = dialog.getNextString();
-			          		
-			            	if (archive != null && moleculesTab.getSelectedMolecule() != null) {
-			            		marsBdvFrame = new MarsBdvFrame(archive, moleculesTab.getSelectedMolecule(), xParameter, yParameter);
-			            		marsBdvFrame.getFrame().addWindowListener(new java.awt.event.WindowAdapter() {
-			            		    @Override
-			            		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-			            		        marsBdvFrame = null;
-			            		    }
-			            		});
-			            		moleculesTab.setMarsBdvFrame(marsBdvFrame);
-			            	}
-			            }
-			        });
-				}); 
-		
-		Action exportVideoAction = new Action("Export Video", null, null,
-				e -> {
-					if (marsBdvFrame == null) {
-						showErrorMessage("There is no BigDataView available for export. "
-								+ "Please configure the BDV settings in the metadata record, "
-								+ "run \"Show Video\" and then try again.");
-						return;
-					}
-					
-			        SwingUtilities.invokeLater(new Runnable() {
-			            @Override
-			            public void run() {
-			            	if (marsBdvFrame == null)
-			            		return;
-			            		
-			            	GenericDialog dialog = new GenericDialog("Export BDV to ImageJ");
-			     			dialog.addNumericField("x0", -10, 2);
-			     			dialog.addNumericField("y0", -10, 2);
-			     			dialog.addNumericField("width", 20, 2);
-			     			dialog.addNumericField("height", 60, 2);
-			          		dialog.showDialog();
-			          		
-			          		if (dialog.wasCanceled())
-			          			return;
-			          		
-			          		int x0 = (int)dialog.getNextNumber();
-			          		int y0 = (int)dialog.getNextNumber();
-			          		int width = (int)dialog.getNextNumber();
-			          		int height = (int)dialog.getNextNumber();
-			          		
-			          		ImagePlus ip = marsBdvFrame.exportView(x0, y0, width, height);
-			          		
-			          		//Now Show it!
-			          		ip.show();
-			            }
-			        });
-				}); 
-		
+		Action showVideoAction = new Action("Show Video", null, null, e -> showVideo()); 
 		Action deleteMoleculesAction = new Action("Delete Molecules", null, null, e -> deleteMolecules());
 		Action deleteMoleculeTagsAction = new Action("Delete Molecule Tags", null, null, e -> deleteMoleculeTags());
 		Action deleteMoleculeParametersAction = new Action("Delete Molecule Parameters", null, null, e -> deleteMoleculeParameters());
@@ -491,12 +468,135 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 					mergeMoleculesAction,
 					null,
 					showVideoAction,
-					exportVideoAction,
 					null,
 					rebuildIndexesAction);
 		
 		menuBar = new MenuBar(fileMenu, toolsMenu);
-		borderPane.setTop(menuBar);
+		
+		//Setup show properties button but don't add it yet...
+		showPropertiesButton = new Button("");
+		showPropertiesButton.setStyle("-fx-background-color: -fx-outer-border, -fx-inner-border, -fx-body-color;-fx-background-insets: 0, 1, 2;-fx-background-radius: 5, 4, 3;");
+		Text caretRight = FontAwesomeIconFactory.get().createIcon(de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.CARET_RIGHT, "1.4em");
+		caretRight.setStyle(caretRight.getStyle() + "-fx-fill: gray;");
+		Text caretLeft = FontAwesomeIconFactory.get().createIcon(de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.CARET_LEFT, "1.4em");
+		caretLeft.setStyle(caretLeft.getStyle() + "-fx-fill: gray;");
+		showPropertiesButton.setGraphic(caretRight);
+		
+		showPropertiesButton.setOnAction(e -> {
+			if (showProperties.get()) {
+				showProperties.set(false);
+				showPropertiesButton.setGraphic(caretLeft);
+			} else {
+				showProperties.set(true);
+				showPropertiesButton.setGraphic(caretRight);
+			}
+		});
+		
+		menuHBox = new HBox(menuBar);
+		menuHBox.setAlignment(Pos.CENTER);
+		HBox.setHgrow(menuBar, Priority.ALWAYS);
+		HBox.setHgrow(showPropertiesButton, Priority.NEVER);
+		
+		borderPane.setTop(menuHBox);
+	}
+	
+	public void showPropertiesButton() {
+		menuHBox.getChildren().clear();
+		menuHBox.getChildren().add(menuBar);
+		menuHBox.getChildren().add(showPropertiesButton);
+	}
+	
+	public void hidePropertiesButton() {
+		menuHBox.getChildren().clear();
+		menuHBox.getChildren().add(menuBar);
+	}
+	
+	protected void showVideo() {
+		for (String metaUID : archive.getMetadataUIDs()) {
+			MarsMetadata meta = archive.getMetadata(metaUID);
+			for (String name : meta.getBdvSourceNames()) {
+				File path = (meta.getBdvSource(name).isN5()) ? new File(meta.getBdvSource(name).getPath() + "/" + meta.getBdvSource(name).getN5Dataset()) : new File(meta.getBdvSource(name).getPath());
+				if (!path.exists()) {
+					RoverErrorDialog alert = new RoverErrorDialog(getNode().getScene().getWindow(), 
+							"The Bdv source path " + path.getAbsolutePath() + "\n" +
+							" of metadata record " + meta.getUID() + " does not exist.\n"
+							+ "Please correct the path and try again.");
+					alert.show();
+					return;
+				}
+			}
+		}
+
+		boolean discoveredBdvFrameSettings = false;
+		if (archive.getFile() != null) {
+			try {
+				ObjectMapper mapper = new ObjectMapper();
+				JsonNode jsonNode = mapper.readTree(FileUtils.readFileToByteArray(new File(archive.getFile().getAbsolutePath() + ".rover")));
+				if (jsonNode.get("bdvFrames") != null)
+					discoveredBdvFrameSettings = true;
+			} catch (IOException e) {}
+		}
+		
+		//Check if there are settings for MarsBdvFrames in the rover file...
+		if (discoveredBdvFrameSettings) {
+			RoverConfirmationDialog useBdvSettingsDialog = new RoverConfirmationDialog(getNode().getScene().getWindow(),"Video window settings were discovered.\n"
+					+ "Would you like to use them?", "Yes", "No");
+			useBdvSettingsDialog.showAndWait().ifPresent(result -> {
+				if (result.getButtonData().isDefaultButton()) {
+					loadBdvSettings();
+				} else {
+					Platform.runLater(new Runnable() {
+						@Override
+						public void run() {
+							ShowVideoDialog dialog = new ShowVideoDialog(getNode().getScene().getWindow());
+							dialog.showAndWait().ifPresent(result2 -> buildBdvFrames(result2.getViewNumber()));
+						}
+					});
+				}
+			});
+		} else {
+			ShowVideoDialog dialog = new ShowVideoDialog(getNode().getScene().getWindow());
+			dialog.showAndWait().ifPresent(result2 -> buildBdvFrames(result2.getViewNumber()));
+		}
+	}
+	
+	private void buildBdvFrames(int views) {
+		SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {		
+            	if (archive != null && moleculesTab.getSelectedMolecule() != null) {
+            		BdvHandle[] handles = new BdvHandle[views];
+            		marsBdvFrames = new MarsBdvFrame[views];
+            		for (int i = 0; i < views; i++) {
+            			MarsBdvFrame marsBdvFrame = createMarsBdvFrame(prefService.getBoolean(SettingsTab.class, "useN5VolatileViews", true));
+	            		marsBdvFrames[i] = marsBdvFrame;
+            			handles[i] = marsBdvFrame.getBdvHandle();
+            		}
+                 
+            		ViewerTransformSyncStarter sync = new ViewerTransformSyncStarter(handles, true);
+            		
+            		for (int i = 0; i < marsBdvFrames.length; i++) {
+	            		marsBdvFrames[i].getFrame().addWindowListener(new java.awt.event.WindowAdapter() {
+	            		    @Override
+	            		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+	            		    	super.windowClosing(windowEvent);
+	             		    	for (int i=0; i<marsBdvFrames.length; i++)
+	             		    		if (marsBdvFrames[i] != null) {
+	             		    			marsBdvFrames[i].getFrame().dispose();
+	             		    			marsBdvFrames[i] = null;
+	             		    		}
+	             		    	
+	             		    	marsBdvFrames = null;
+	                            new ViewerTransformSyncStopper(sync.getSynchronizers(), sync.getTimeSynchronizers()).run();
+	            		    }
+	            		});
+            		}
+                    sync.run();
+            		
+            		moleculesTab.setMarsBdvFrames(marsBdvFrames);
+            	}
+            }
+        });
 	}
 	
 	protected void deleteMolecules() {
@@ -1036,23 +1136,12 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 	
 	public abstract M createMoleculesTab(final Context context);
 	
+	public abstract MarsBdvFrame createMarsBdvFrame(boolean useVolatile);
+	
+	public abstract MarsBdvFrame createMarsBdvFrame(JsonParser jParser, boolean useVolatile);
+	
 	public DashboardTab getDashboard() {
 		return dashboardTab;
-	}
-	
-	protected void showErrorMessage(String message) {
-		Alert alert = new Alert(AlertType.ERROR);
-	    alert.initModality(Modality.WINDOW_MODAL);
-	    alert.initOwner(getNode().getScene().getWindow());
-	    Image image1 = new Image("de/mpg/biochem/mars/fx/dialogs/RoverError.png");
-	    ImageView imageView = new ImageView(image1);
-	    imageView.setFitWidth(80);
-	    imageView.setFitHeight(80);
-	    alert.setGraphic(imageView);
-	    alert.setHeaderText(null);
-	    alert.setContentText(message);
-
-	    alert.show();
 	}
 	
 	//Lock, unlock and update event might be called by swing threads
@@ -1264,6 +1353,30 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 					moleculeArchiveTab.fromJSON(jParser);
 			 	});
 		
+		setJsonField("bdvFrames", jGenerator -> {
+					if (marsBdvFrames != null && marsBdvFrames.length > 0) {
+						jGenerator.writeObjectFieldStart("bdvFrames");
+						jGenerator.writeNumberField("numberViews", marsBdvFrames.length);
+						jGenerator.writeArrayFieldStart("views");
+						for (MarsBdvFrame bdvFrame : marsBdvFrames)
+							if (bdvFrame != null)
+								bdvFrame.toJSON(jGenerator);
+						jGenerator.writeEndArray();
+						jGenerator.writeEndObject();
+					} else {
+						//We should check if there were settings already saved and restore them!
+						ObjectMapper mapper = new ObjectMapper();	
+			    		JsonNode jsonNode = mapper.readTree(roverFileBackground);
+			    		JsonNode bdvFrameNode = jsonNode.get("bdvFrames");
+			    		jGenerator.writeFieldName("bdvFrames");
+			    		mapper.writeTree(jGenerator, bdvFrameNode);
+					}
+				}, 
+				jParser -> {
+					//The settings were discovered but will not be loaded until showVideo is called.
+					MarsUtil.passThroughUnknownObjects(jParser);
+				});
+		
 		/*
 		 * 
 		 * The fields below are needed for backwards compatibility.
@@ -1273,40 +1386,41 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 		 */
 		
 		setJsonField("Window", null, 
-				jParser -> {
-					Rectangle rect = new Rectangle(0, 0, 800, 600);
-					while (jParser.nextToken() != JsonToken.END_OBJECT) {
-						if ("x".equals(jParser.getCurrentName())) {
-							jParser.nextToken();
-							rect.x = jParser.getIntValue();
-						}
-						if ("y".equals(jParser.getCurrentName())) {
-							jParser.nextToken();
-							rect.y = jParser.getIntValue();
-						}
-						if ("width".equals(jParser.getCurrentName())) {
-							jParser.nextToken();
-							rect.width = jParser.getIntValue();
-						}
-						if ("height".equals(jParser.getCurrentName())) {
-							jParser.nextToken();
-							rect.height = jParser.getIntValue();
-						}
+			jParser -> {
+				Rectangle rect = new Rectangle(0, 0, 800, 600);
+				while (jParser.nextToken() != JsonToken.END_OBJECT) {
+					if ("x".equals(jParser.getCurrentName())) {
+						jParser.nextToken();
+						rect.x = jParser.getIntValue();
 					}
-					
-					windowStateLoaded = true;
-					
-					SwingUtilities.invokeLater(() -> { 
-						frame.setBounds(rect);
-						frame.setVisible(true);
-					});
+					if ("y".equals(jParser.getCurrentName())) {
+						jParser.nextToken();
+						rect.y = jParser.getIntValue();
+					}
+					if ("width".equals(jParser.getCurrentName())) {
+						jParser.nextToken();
+						rect.width = jParser.getIntValue();
+					}
+					if ("height".equals(jParser.getCurrentName())) {
+						jParser.nextToken();
+						rect.height = jParser.getIntValue();
+					}
+				}
+				
+				windowStateLoaded = true;
+				
+				SwingUtilities.invokeLater(() -> { 
+					frame.setBounds(rect);
+					frame.setVisible(true);
 				});
-		
-		
+			});
 	}
     
     protected void saveState(String path) throws IOException {
-		OutputStream stream = new BufferedOutputStream(new FileOutputStream(new File(path + ".cfg")));
+    	if (marsBdvFrames == null)
+    		roverFileBackground = FileUtils.readFileToByteArray(new File(path + ".rover"));
+ 
+		OutputStream stream = new BufferedOutputStream(new FileOutputStream(new File(path + ".rover")));
 		JsonGenerator jGenerator = jfactory.createGenerator(stream);
 		jGenerator.useDefaultPrettyPrinter();
 		toJSON(jGenerator);
@@ -1319,7 +1433,7 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     	if (archive.getFile() == null)
     		return;
     	
-    	File stateFile = new File(archive.getFile().getAbsolutePath() + ".cfg");
+    	File stateFile = new File(archive.getFile().getAbsolutePath() + ".rover");
     	if (!stateFile.exists())
     		return;
     	
@@ -1328,6 +1442,75 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
 	    fromJSON(jParser);
 		jParser.close();
 		inputStream.close();
+    }
+    
+    protected void loadBdvSettings() {
+    	if (archive.getFile() == null)
+    		return;
+    	
+    	File stateFile = new File(archive.getFile().getAbsolutePath() + ".rover");
+    	if (!stateFile.exists())
+    		return;
+    	
+    	//Build default parser
+    	DefaultJsonConverter defaultParser = new DefaultJsonConverter();
+    	defaultParser.setShowWarnings(false);
+ 	    defaultParser.setJsonField("bdvFrames", null, jParser -> {
+ 	    	jParser.nextToken();
+ 	    	jParser.nextToken();
+ 	    	final int views = jParser.getNumberValue().intValue();
+     		BdvHandle[] handles = new BdvHandle[views];
+     		marsBdvFrames = new MarsBdvFrame[views];
+     		int index = 0;
+     		jParser.nextToken();
+     		while (jParser.nextToken() != JsonToken.END_ARRAY) {
+     			MarsBdvFrame marsBdvFrame = createMarsBdvFrame(jParser, prefService.getBoolean(SettingsTab.class, "useN5VolatileViews", true));
+         		marsBdvFrames[index] = marsBdvFrame;
+     			handles[index] = marsBdvFrame.getBdvHandle();
+     			index++;
+     		}
+     		
+     		//Make sure we move out of the bdvFrames field to the end of the object...
+     		jParser.nextToken();
+          
+     		ViewerTransformSyncStarter sync = new ViewerTransformSyncStarter(handles, true);
+     		
+     		for (int i = 0; i < marsBdvFrames.length; i++) {
+         		marsBdvFrames[i].getFrame().addWindowListener(new java.awt.event.WindowAdapter() {
+         		    @Override
+         		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+         		    	super.windowClosing(windowEvent);
+         		    	for (int i=0; i<marsBdvFrames.length; i++)
+         		    		if (marsBdvFrames[i] != null) {
+         		    			marsBdvFrames[i].getFrame().dispose();
+         		    			marsBdvFrames[i] = null;
+         		    		}
+         		    	marsBdvFrames = null;
+                        new ViewerTransformSyncStopper(sync.getSynchronizers(), sync.getTimeSynchronizers()).run();
+         		    }
+         		});
+     		}
+            sync.run();
+                 
+         	if (moleculesTab.getSelectedMolecule() != null)
+         		moleculesTab.setMarsBdvFrames(marsBdvFrames);
+ 		});
+    	
+ 	   SwingUtilities.invokeLater(new Runnable() {
+           @Override
+           public void run() {	
+        	   try {
+	        	   InputStream inputStream = new BufferedInputStream(new FileInputStream(stateFile));
+	        	   JsonParser jParser = jfactory.createParser(inputStream);
+				   defaultParser.fromJSON(jParser);
+	       		   jParser.close();
+	       		   inputStream.close();
+        	   } catch (IOException e) {
+   				e.printStackTrace();
+   			   }
+           }
+ 	   });
+		
     }
 
     public void fireEvent(Event event) {

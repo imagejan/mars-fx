@@ -1,13 +1,14 @@
-/*******************************************************************************
- * Copyright (C) 2019, Duderstadt Lab
- * All rights reserved.
- * 
+/*-
+ * #%L
+ * JavaFX GUI for processing single-molecule TIRF and FMT data in the Structure and Dynamics of Molecular Machines research group.
+ * %%
+ * Copyright (C) 2018 - 2021 Karl Duderstadt
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
- * 
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -23,7 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ * #L%
+ */
 package de.mpg.biochem.mars.fx.molecule;
 
 import java.io.IOException;
@@ -34,6 +36,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.KeyCode;
 
+import org.controlsfx.control.ToggleSwitch;
 import org.controlsfx.control.textfield.CustomTextField;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -62,6 +65,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener.Change;
 import javafx.event.Event;
 import javafx.geometry.Insets;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TableCell;
@@ -70,6 +74,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.control.Button;
@@ -97,8 +102,6 @@ import org.scijava.prefs.PrefService;
 
 public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeArchiveTab {
 	
-	//private JFXToggleButton smileEncodingButton;
-	
     protected TableView<HotKeyEntry> hotKeyTable;
     protected ObservableList<HotKeyEntry> hotKeyRowList = FXCollections.observableArrayList();
     
@@ -112,7 +115,6 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
 		
 		setIcon(FontAwesomeIconFactory.get().createIcon(COG, "1.083em"));
 		
-		//smileEncodingButton = new JFXToggleButton();
 		rootPane = new VBox();
 			
 		Text moleculesHeading = new Text("Tag shortcuts");
@@ -130,6 +132,30 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
 		
 		rootPane.getChildren().add(buildHotKeyTable());
 		
+		Text bdvHeading = new Text("Bdv options");
+		bdvHeading.setFont(Font.font("Helvetica", FontWeight.NORMAL, 20));
+		
+		rootPane.getChildren().add(bdvHeading);
+		VBox.setMargin(bdvHeading, new Insets(15, 15, 15, 15));
+		
+		GridPane gridpane = new GridPane();
+		
+		Label volatileLabel = new Label("Use N5 volatile view");
+		gridpane.add(volatileLabel, 0, 5);
+		GridPane.setMargin(volatileLabel, new Insets(5, 5, 5, 5));
+		
+		ToggleSwitch volatileSwitch = new ToggleSwitch();
+		gridpane.add(volatileSwitch, 1, 5);
+		volatileSwitch.setSelected(prefService.getBoolean(SettingsTab.class, "useN5VolatileViews", true));
+		volatileSwitch.selectedProperty().addListener((t, o, n) -> {
+			prefService.remove(SettingsTab.class, "useN5VolatileViews");
+			prefService.put(SettingsTab.class, "useN5VolatileViews", n);
+		});
+		GridPane.setMargin(volatileSwitch, new Insets(5, 5, 5, 5));
+		
+		rootPane.getChildren().add(gridpane);
+		VBox.setMargin(gridpane, new Insets(15, 15, 15, 15));
+		
 		getNode().addEventHandler(MoleculeArchiveEvent.MOLECULE_ARCHIVE_EVENT, this);
 		
 		getTab().setContent(rootPane);
@@ -137,9 +163,10 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
 	
 	protected BorderPane buildHotKeyTable() {
 		hotKeyTable = new TableView<HotKeyEntry>();
+		hotKeyTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     	
     	TableColumn<HotKeyEntry, HotKeyEntry> deleteColumn = new TableColumn<>();
-    	deleteColumn.setPrefWidth(30);
+    	deleteColumn.setMaxWidth(30);
     	deleteColumn.setMinWidth(30);
     	deleteColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue()));
     	deleteColumn.setCellFactory(param -> new TableCell<HotKeyEntry, HotKeyEntry>() {
@@ -189,8 +216,8 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
         );
 
         shortcutColumn.setSortable(false);
-        shortcutColumn.setPrefWidth(100);
-        shortcutColumn.setMinWidth(100);
+        //shortcutColumn.setPrefWidth(150);
+        //shortcutColumn.setMinWidth(100);
         shortcutColumn.setStyle( "-fx-alignment: CENTER-LEFT;");
         hotKeyTable.getColumns().add(shortcutColumn);
         
@@ -203,8 +230,8 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
                 new ReadOnlyObjectWrapper<>(String.valueOf(hotKey.getValue().getTag()))
         );
         tagColumn.setSortable(false);
-        tagColumn.setPrefWidth(150);
-        tagColumn.setMinWidth(150);
+        //tagColumn.setPrefWidth(150);
+        //tagColumn.setMinWidth(150);
         tagColumn.setEditable(true);
         tagColumn.setStyle( "-fx-alignment: CENTER-LEFT;");
         hotKeyTable.getColumns().add(tagColumn);
@@ -215,6 +242,7 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
 		Button addButton = new Button();
 		addButton.setGraphic(FontAwesomeIconFactory.get().createIcon(de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.PLUS, "1.0em"));
 		addButton.setCenterShape(true);
+		addButton.setCursor(Cursor.DEFAULT);
 		addButton.setStyle(
                 "-fx-background-radius: 5em; " +
                 "-fx-min-width: 18px; " +
@@ -242,9 +270,9 @@ public class SettingsTab extends AbstractMoleculeArchiveTab implements MoleculeA
 		*/
 		
         BorderPane hotKeyPane = new BorderPane();
-        hotKeyPane.setMinWidth(400);
-        hotKeyPane.setMinHeight(350);
-        hotKeyPane.setMaxWidth(400);
+        //hotKeyPane.setMinWidth(600);
+        //hotKeyPane.setMinHeight(350);
+        //hotKeyPane.setMaxWidth(600);
         hotKeyPane.setMaxHeight(350);
         
         Insets insets = new Insets(5, 50, 5, 50);
