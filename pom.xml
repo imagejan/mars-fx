@@ -84,7 +84,6 @@
 
 	<properties>
 		<scijava.jvm.version>11</scijava.jvm.version>
-		<scijava.jvm.test.version>${scijava.jvm.version}</scijava.jvm.test.version>
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 	
 		<package-name>de.mpg.biochem.mars</package-name>
@@ -105,6 +104,9 @@
 		<junit-jupiter.version>5.2.0</junit-jupiter.version>
 		<junit-jupiter-api.version>${junit-jupiter.version}</junit-jupiter-api.version>
 		<junit-jupiter-engine.version>${junit-jupiter.version}</junit-jupiter-engine.version>
+		
+		<!-- JavaFx Version-->
+		<javafx.version>13</javafx.version>
 	</properties>
 	
 	<repositories>
@@ -143,6 +145,42 @@
 			<groupId>de.mpg.biochem</groupId>
 			<artifactId>mars-core</artifactId>
 			<version>${mars-core.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-base</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-controls</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-graphics</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-swing</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-media</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-fxml</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-web</artifactId>
+			<version>${javafx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
@@ -244,8 +282,8 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jfoenix</groupId>
-			<artifactId>jfoenix</artifactId>
-			<version>8.0.10</version>
+    		<artifactId>jfoenix</artifactId>
+    		<version>9.0.10</version>
 		</dependency>
 		<dependency>
 			<groupId>org.reactfx</groupId>
@@ -260,12 +298,12 @@
 		<dependency>
 			<groupId>org.controlsfx</groupId>
 			<artifactId>controlsfx</artifactId>
-			<version>8.40.17</version>
+			<version>11.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.fxmisc.flowless</groupId>
 			<artifactId>flowless</artifactId>
-			<version>0.6.1</version>
+			<version>0.6.3</version>
 		</dependency>
 		<dependency>
 			<groupId>org.fxmisc.wellbehaved</groupId>
@@ -330,7 +368,7 @@
 		<dependency>
 			<groupId>org.fxmisc.richtext</groupId>
 			<artifactId>richtextfx</artifactId>
-			<version>0.9.2</version>
+			<version>0.10.6</version>
 		</dependency>
 		<dependency>
 			<groupId>de.gsi.chart</groupId>
