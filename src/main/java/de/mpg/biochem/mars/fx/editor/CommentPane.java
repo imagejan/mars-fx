@@ -99,6 +99,7 @@ public class CommentPane {
     	borderPane = new BorderPane();
     	borderPane.getStyleClass().add("main");
     	borderPane.setPrefSize(800, 800);
+    	
 		commentEditor = new CommentEditor();
 		borderPane.setCenter(commentEditor);
 		

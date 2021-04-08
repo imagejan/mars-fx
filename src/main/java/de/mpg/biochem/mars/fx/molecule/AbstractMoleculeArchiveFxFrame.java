@@ -367,8 +367,8 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
         moleculesTab = createMoleculesTab(context);
         tabSet.add(moleculesTab);
         
-        //commentsTab = new CommentsTab(context);
-        //tabSet.add(commentsTab);
+        commentsTab = new CommentsTab(context);
+        tabSet.add(commentsTab);
         
         settingsTab = new SettingsTab(context);
         tabSet.add(settingsTab);
@@ -380,11 +380,10 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     			public void changed(ObservableValue<? extends Tab> observable, Tab oldValue, Tab newValue) {
     				tabSet.stream().filter(maTab -> newValue == maTab.getTab()).findFirst().ifPresent(maTab -> updateMenus(maTab.getMenus()));
     					
-    				//if (oldValue == commentsTab.getTab()) {
-    				//	commentsTab.getCommentPane().setEditMode(false);
-    				//	commentsTab.saveComments();
-    				//} else 
-    					if (oldValue == imageMetadataTab.getTab()) {
+    				if (oldValue == commentsTab.getTab()) {
+    					commentsTab.getCommentPane().setEditMode(false);
+    					commentsTab.saveComments();
+    				} else if (oldValue == imageMetadataTab.getTab()) {
     					imageMetadataTab.saveCurrentRecord();
     				} else if (oldValue == moleculesTab.getTab()) {
     					moleculesTab.saveCurrentRecord();
@@ -1519,7 +1518,7 @@ public abstract class AbstractMoleculeArchiveFxFrame<I extends MarsMetadataTab<?
     	dashboardTab.fireEvent(event);
         imageMetadataTab.fireEvent(event);
         moleculesTab.fireEvent(event);
-        //commentsTab.fireEvent(event);
+        commentsTab.fireEvent(event);
         settingsTab.fireEvent(event);
     }
 }
