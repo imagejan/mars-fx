@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
 
-import org.apache.batik.bridge.ViewBox;
 import org.controlsfx.control.ToggleSwitch;
 
 import static java.util.stream.Collectors.toList;

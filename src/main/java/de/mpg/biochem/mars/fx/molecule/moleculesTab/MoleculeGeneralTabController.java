@@ -51,7 +51,7 @@ import de.mpg.biochem.mars.fx.event.DefaultMoleculeArchiveEventHandler;
 import de.mpg.biochem.mars.fx.event.MoleculeArchiveEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeEvent;
 import de.mpg.biochem.mars.fx.event.MoleculeTagsChangedEvent;
-import de.mpg.biochem.mars.fx.util.MarsJFXChipViewSkin;
+//import de.mpg.biochem.mars.fx.util.MarsJFXChipViewSkin;
 import de.mpg.biochem.mars.metadata.MarsMetadata;
 import de.mpg.biochem.mars.molecule.Molecule;
 import de.mpg.biochem.mars.molecule.MoleculeArchive;
@@ -105,7 +105,7 @@ public class MoleculeGeneralTabController implements MoleculeSubPane {
 	
 	private MoleculeArchive<Molecule, MarsMetadata, MoleculeArchiveProperties<Molecule, MarsMetadata>, MoleculeArchiveIndex<Molecule, MarsMetadata>> archive;
 	private Molecule molecule;
-	private MarsJFXChipViewSkin<String> skin;
+	//private MarsJFXChipViewSkin<String> skin;
 	
     public MoleculeGeneralTabController() {
     	rootPane = new ScrollPane();
@@ -249,8 +249,8 @@ public class MoleculeGeneralTabController implements MoleculeSubPane {
 			};
 		}
 		
-		skin = new MarsJFXChipViewSkin<>(chipView);
-		chipView.setSkin(skin);
+		//skin = new MarsJFXChipViewSkin<>(chipView);
+		//chipView.setSkin(skin);
     }
 	
     @Override

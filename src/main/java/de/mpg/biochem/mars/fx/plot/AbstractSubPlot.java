@@ -54,8 +54,6 @@ import de.gsi.chart.renderer.spi.ErrorDataSetRenderer;
 import de.gsi.chart.ui.geometry.Side;
 import de.gsi.dataset.spi.DefaultDataSet;
 import de.gsi.dataset.spi.DoubleDataSet;
-import de.gsi.chart.ui.css.StylishBooleanProperty;
-import de.gsi.chart.ui.css.StylishObjectProperty;
 
 import javafx.stage.WindowEvent;
 

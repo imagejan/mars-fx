@@ -47,6 +47,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.util.StringConverter;
 
+/**
+ * An axis implementation that will works with string categories where each value has a unique category(tick mark) along the
+ * axis.
+ */
 public class MarsCategoryAxis extends DefaultNumericAxis {
 	
     private boolean forceAxisCategories = false;
@@ -288,7 +292,7 @@ public class MarsCategoryAxis extends DefaultNumericAxis {
         final List<String> newCategoryList = new ArrayList<>();
         final boolean result = dataSet.lock().readLockGuard(() -> {
             boolean zeroDataLabels = true;
-            for (int i = 0; i < dataSet.getDataCount(DataSet.DIM_X); i++) {
+            for (int i = 0; i < dataSet.getDataCount(); i++) {
                 final String dataLabel = dataSet.getDataLabel(i);
                 String sanitizedLabel;
                 if (dataLabel == null) {
