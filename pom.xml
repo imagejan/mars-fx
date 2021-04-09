@@ -10,7 +10,7 @@
 
 	<groupId>de.mpg.biochem</groupId>
 	<artifactId>mars-fx</artifactId>
-	<version>11.1.1-SNAPSHOT</version>
+	<version>11.0.0-SNAPSHOT</version>
 	<name>mars-fx</name>
 	<url>http://biochem.mpg.de/duderstadt/</url>
 	<inceptionYear>2018</inceptionYear>
